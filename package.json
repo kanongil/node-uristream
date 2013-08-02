@@ -1,0 +1,41 @@
+{
+  "name": "uristream",
+  "version": "0.0.0",
+  "description": "Stream from URI-based resources",
+  "main": "uristream.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kanongil/node-uristream.git"
+  },
+  "author": "Gil Pedersen <gpdev@gpost.dk>",
+  "license": "BSD",
+  "dependencies": {
+    "dataurl": "~0.1.0",
+    "request": "~2.25.0",
+    "mime": "~1.2.9",
+    "xtend": "~2.0.6",
+    "oncemore": "~0.1.0",
+    "deep-equal": "0.0.0",
+    "debug": "~0.7.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "protocol",
+    "scheme",
+    "read",
+    "streams2",
+    "http",
+    "https",
+    "file",
+    "data"
+  ],
+  "bugs": {
+    "url": "https://github.com/kanongil/node-uristream/issues"
+  }
+}
