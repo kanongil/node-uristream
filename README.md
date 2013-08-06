@@ -7,6 +7,8 @@ Supported protocols:
 * `https:`
 * `data:`
 
+The `http(s)` handler transparently attempts to use gzip compression for the transport.
+
 ## Usage
 
     var uristream = require('uristream');
@@ -31,6 +33,16 @@ The `http` and `https` protocol handlers will additionally accept these options:
 
 * `headers` - Headers to add to the request.
 * `agent` - Use supplied agent for the request.
+
+#### Event: 'meta'
+
+In addition to the standard `end`, `close`, and `error` events, a `meta` event is emitted once before any data is available.
+
+* `meta` - Object containing standardized stream metadata:
+  + `url` - String with resolved data url.
+  + `mime` - String with mime type for the data.
+  + `size` - Integer representing total data size in bytes. `-1` if unknown.
+  + `modified` - Date last modified. `null` if unknown.
 
 ## Installation
 
