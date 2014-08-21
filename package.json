@@ -16,7 +16,7 @@
     "dataurl": "~0.1.0",
     "debug": "^1.0.4",
     "deep-equal": "^0.2.1",
-    "mime": "^1.2.9",
+    "mime-types": "^1.0.2",
     "oncemore": "^1.0.0",
     "request": "^2.36.0",
     "xtend": "^4.0.0"
