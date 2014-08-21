@@ -1,5 +1,3 @@
-"use strict";
-
 var util = require('util'),
     url = require('url'),
     Readable = require('stream').Readable;
@@ -31,6 +29,9 @@ function UriReader(uri, options) {
 // TODO: allow piping directly to a http response, like in request
 }
 util.inherits(UriReader, Readable);
+
+UriReader.prototype._read = function() {
+};
 
 UriReader.prototype.abort = function() {
 //  this.destroy();
