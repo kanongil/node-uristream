@@ -2,6 +2,8 @@ var util = require('util'),
     url = require('url'),
     Readable = require('stream').Readable;
 
+var Boom = require('boom');
+
 if (!Readable)
   Readable = require('readable-stream');
 
@@ -38,7 +40,7 @@ UriReader.prototype.abort = function() {
 };
 
 /*UriReader.prototype.destroy = function() {
-  
+
 };*/
 
 var handlers = {};
@@ -48,17 +50,17 @@ function uristream(uri, options) {
 
   var protocol = url.parse(uri).protocol || '';
   if (!protocol)
-    throw new Error('Missing protocol in uri:', uri);
+    throw Boom.badRequest('Missing protocol in uri:', uri);
 
   if (!isSupported(protocol))
-    throw new Error('Unsupported protocol:', protocol);
+    throw Boom.badRequest('Unsupported protocol:', protocol);
 
   var scheme = protocol.slice(0,-1);
   if (options.whitelist && options.whitelist.indexOf(scheme) === -1)
-    throw new Error('Protocol not allowed:', protocol);
-    
+    throw Boom.forbidden('Protocol not allowed:', protocol);
+
   if (options.blacklist && options.blacklist.indexOf(scheme) !== -1)
-    throw new Error('Protocol not allowed:', protocol);
+    throw Boom.forbidden('Protocol not allowed:', protocol);
 
   return new handlers[scheme](uri, options);
 }

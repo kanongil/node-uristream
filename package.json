@@ -13,6 +13,7 @@
   "author": "Gil Pedersen <gpdev@gpost.dk>",
   "license": "BSD",
   "dependencies": {
+    "boom": "^2.5.1",
     "dataurl": "~0.1.0",
     "debug": "^1.0.4",
     "deep-equal": "^0.2.1",
