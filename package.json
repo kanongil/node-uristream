@@ -14,12 +14,12 @@
   "license": "BSD",
   "dependencies": {
     "dataurl": "~0.1.0",
-    "debug": "^0.8.1",
+    "debug": "^1.0.4",
     "deep-equal": "^0.2.1",
     "mime": "^1.2.9",
-    "oncemore": "~0.1.0",
+    "oncemore": "^1.0.0",
     "request": "^2.36.0",
-    "xtend": "^3.0.0"
+    "xtend": "^4.0.0"
   },
   "directories": {
     "test": "test"
