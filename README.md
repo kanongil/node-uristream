@@ -33,6 +33,7 @@ The `http` and `https` protocol handlers will additionally accept these options:
 
 * `headers` - Headers to add to the request.
 * `agent` - Use supplied agent for the request.
+* `retries` - Retry request on temporary errors, default `1`.
 
 #### Event: 'meta'
 
