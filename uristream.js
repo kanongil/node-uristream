@@ -26,7 +26,7 @@ function UriReader(uri, options) {
   this.timeout = options.timeout;
   this.probe = !!options.probe;
   this.start = ~~options.start;
-//  this.end = ~~options.end;
+  this.end = (parseInt(options.end, 10) == options.end) ? ~~options.end : undefined;
 
 // TODO: allow piping directly to a http response, like in request
 }

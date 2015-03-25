@@ -26,6 +26,7 @@ Returns a standard `Readable` stream based on the `uri`.
 * `timeout` - Integer containing the number of milliseconds to wait for a stream to respond before aborting the stream.
 * `probe` - Boolean that indicates that the stream should not return any data.
 * `start` - Integer indicating the starting offset in bytes.
+* `end` - Integer indicating the end offset in bytes.
 
 #### http options
 
