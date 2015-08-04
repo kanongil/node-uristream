@@ -1,6 +1,6 @@
 var util = require('util'),
     url = require('url'),
-    Readable = require('stream').Readable;
+    Readable = require('readable-stream').Readable;
 
 var Boom = require('boom');
 

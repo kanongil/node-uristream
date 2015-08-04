@@ -19,6 +19,7 @@
     "hoek": "^2.14.0",
     "mime-types": "^2.0.10",
     "oncemore": "^1.0.0",
+    "readable-stream": "^2.0.2",
     "wreck": "^6.1.0"
   },
   "directories": {
