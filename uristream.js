@@ -1,8 +1,10 @@
-var util = require('util'),
-    url = require('url'),
-    Readable = require('readable-stream').Readable;
+'use strict';
 
-var Boom = require('boom');
+const util = require('util');
+const url = require('url');
+const Readable = require('readable-stream').Readable;
+
+const Boom = require('boom');
 
 if (!Readable)
   Readable = require('readable-stream');
@@ -43,19 +45,19 @@ UriReader.prototype.abort = function() {
 
 };*/
 
-var handlers = {};
+let handlers = {};
 
 function uristream(uri, options) {
   options = options || {};
 
-  var protocol = url.parse(uri).protocol || '';
+  let protocol = url.parse(uri).protocol || '';
   if (!protocol)
     throw Boom.badRequest('Missing protocol in uri:', uri);
 
   if (!isSupported(protocol))
     throw Boom.badRequest('Unsupported protocol:', protocol);
 
-  var scheme = protocol.slice(0,-1);
+  let scheme = protocol.slice(0,-1);
   if (options.whitelist && options.whitelist.indexOf(scheme) === -1)
     throw Boom.forbidden('Protocol not allowed:', protocol);
 
@@ -74,7 +76,7 @@ function register(schemes, handler) {
 }
 
 function isSupported(protocol) {
-  var scheme = protocol;
+  let scheme = protocol;
   if (scheme.slice(-1) === ':')
     scheme = protocol.slice(0,-1);
   return (scheme in handlers);
@@ -99,6 +101,6 @@ function PartialError(err, processed, expected) {
 util.inherits(PartialError, Error);
 PartialError.prototype.name = 'Partial Error';
 
-var file_proto = require('./lib/file.js'),
-    http_proto = require('./lib/http.js'),
-    data_proto = require('./lib/data.js');
+const file_proto = require('./lib/file.js');
+const http_proto = require('./lib/http.js');
+const data_proto = require('./lib/data.js');
