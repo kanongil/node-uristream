@@ -28,7 +28,10 @@
   "directories": {
     "test": "test"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "code": "^5.1.0",
+    "lab": "^14.3.0"
+  },
   "keywords": [
     "protocol",
     "scheme",
