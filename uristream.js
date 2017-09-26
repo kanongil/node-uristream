@@ -6,39 +6,33 @@ const Readable = require('readable-stream').Readable;
 
 const Boom = require('boom');
 
-if (!Readable) {
-    Readable = require('readable-stream');
-}
 
-const UriReader = function (uri, options) {
+const UriReader = class extends Readable {
 
-    options = options || {};
+    constructor(uri, options) {
 
-    Readable.call(this, options);
+        options = options || {};
 
-    this.url = Url.parse(uri);
-    this.meta = null;
+        super(options);
 
-    // options
-    this.timeout = options.timeout;
-    this.probe = !!options.probe;
-    this.start = ~~options.start;
-    this.end = (parseInt(options.end, 10) == options.end) ? ~~options.end : undefined;
+        this.url = Url.parse(uri);
+        this.meta = null;
 
-// TODO: allow piping directly to a http response, like in request
-};
-Util.inherits(UriReader, Readable);
+        // options
+        this.timeout = options.timeout;
+        this.probe = !!options.probe;
+        this.start = ~~options.start;
+        this.end = (parseInt(options.end, 10) == options.end) ? ~~options.end : undefined;
+    }
 
-UriReader.prototype._read = function () {
-};
+    _read() { }
 
-UriReader.prototype.abort = function () {
-//  this.destroy();
+    abort(reason) {
+
+        this.destroy(reason);
+    }
 };
 
-/*UriReader.prototype.destroy = function() {
-
-};*/
 
 const handlers = {};
 
