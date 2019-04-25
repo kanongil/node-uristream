@@ -1,45 +1,40 @@
 'use strict';
 
-const Util = require('util');
 const Url = require('url');
-let Readable = require('readable-stream').Readable;
+const { Readable } = require('readable-stream');
 
 const Boom = require('@hapi/boom');
 
-if (!Readable) {
-    Readable = require('readable-stream');
-}
+const UriReader = class extends Readable {
 
-const UriReader = function (uri, options) {
+    constructor(uri, options) {
 
-    options = options || {};
+        options = options || {};
 
-    Readable.call(this, options);
+        super(options);
 
-    this.url = Url.parse(uri);
-    this.meta = null;
+        this.url = Url.parse(uri);
+        this.meta = null;
 
-    // options
-    this.timeout = options.timeout;
-    this.probe = !!options.probe;
-    this.start = ~~options.start;
-    this.end = (parseInt(options.end, 10) == options.end) ? ~~options.end : undefined;
+        // options
+        this.timeout = options.timeout;
+        this.probe = !!options.probe;
+        this.start = ~~options.start;
+        this.end = (parseInt(options.end, 10) == options.end) ? ~~options.end : undefined;
 
-// TODO: allow piping directly to a http response, like in request
+    // TODO: allow piping directly to a http response, like in request
+    }
+
+    _read() {}
+
+    abort() {
+    //  this.destroy();
+    }
+
+/*destroy() {
+
+}*/
 };
-
-Util.inherits(UriReader, Readable);
-
-UriReader.prototype._read = function () {
-};
-
-UriReader.prototype.abort = function () {
-//  this.destroy();
-};
-
-/*UriReader.prototype.destroy = function() {
-
-};*/
 
 const handlers = {};
 
@@ -90,30 +85,32 @@ const isSupported = function (protocol) {
     return (scheme in handlers);
 };
 
-const PartialError = function (err, processed, expected) {
+const PartialError = class extends Error {
 
-    Error.call(this);
+    constructor(err, processed, expected) {
 
-    if (err.stack) {
-        Object.defineProperty(this, 'stack', {
-            enumerable: false,
-            configurable: false,
-            get: function () {
+        super();
 
-                return err.stack;
-            }
-        });
+        if (err.stack) {
+            Object.defineProperty(this, 'stack', {
+                enumerable: false,
+                configurable: false,
+                get: function () {
+
+                    return err.stack;
+                }
+            });
+        }
+        else {
+            Error.captureStackTrace(this, arguments.callee);
+        }
+
+        this.message = err.message || err.toString();
+        this.processed = processed || -1;
+        this.expected = expected;
     }
-    else {
-        Error.captureStackTrace(this, arguments.callee);
-    }
-
-    this.message = err.message || err.toString();
-    this.processed = processed || -1;
-    this.expected = expected;
 };
 
-Util.inherits(PartialError, Error);
 PartialError.prototype.name = 'Partial Error';
 
 module.exports = exports = uristream;
