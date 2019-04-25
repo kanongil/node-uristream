@@ -2,9 +2,9 @@
 
 const Util = require('util');
 const Url = require('url');
-const Readable = require('readable-stream').Readable;
+let Readable = require('readable-stream').Readable;
 
-const Boom = require('boom');
+const Boom = require('@hapi/boom');
 
 if (!Readable) {
     Readable = require('readable-stream');
@@ -27,6 +27,7 @@ const UriReader = function (uri, options) {
 
 // TODO: allow piping directly to a http response, like in request
 };
+
 Util.inherits(UriReader, Readable);
 
 UriReader.prototype._read = function () {
@@ -85,6 +86,7 @@ const isSupported = function (protocol) {
     if (scheme.slice(-1) === ':') {
         scheme = protocol.slice(0,-1);
     }
+
     return (scheme in handlers);
 };
 
@@ -110,14 +112,18 @@ const PartialError = function (err, processed, expected) {
     this.processed = processed || -1;
     this.expected = expected;
 };
+
 Util.inherits(PartialError, Error);
 PartialError.prototype.name = 'Partial Error';
 
 module.exports = exports = uristream;
 
 exports.UriReader = UriReader;
+
 exports.PartialError = PartialError;
+
 exports.register = register;
+
 exports.isSupported = isSupported;
 
 require('./lib/file.js');
