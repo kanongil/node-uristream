@@ -45,6 +45,7 @@ In addition to the standard `end`, `close`, and `error` events, a `meta` event i
   + `mime` - String with mime type for the data.
   + `size` - Integer representing total data size in bytes. `-1` if unknown.
   + `modified` - Date last modified. `null` if unknown.
+  + `etag` - String entity tag. `undefined` if unknown.
 
 ## Installation
 
