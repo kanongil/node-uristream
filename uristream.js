@@ -7,11 +7,11 @@ const Boom = require('@hapi/boom');
 
 const UriReader = class extends Readable {
 
-    constructor(uri, options) {
+    constructor(uri, { highWaterMark, autoDestroy = false, emitClose = true, ...options }) {
 
         options = options || {};
 
-        super(options);
+        super({ highWaterMark, autoDestroy, emitClose });
 
         this.url = Url.parse(uri);
         this.meta = null;
@@ -20,20 +20,13 @@ const UriReader = class extends Readable {
         this.timeout = options.timeout;
         this.probe = !!options.probe;
         this.start = ~~options.start;
+        // eslint-disable-next-line eqeqeq
         this.end = (parseInt(options.end, 10) == options.end) ? ~~options.end : undefined;
 
-    // TODO: allow piping directly to a http response, like in request
+        // TODO: allow piping directly to a http response, like in request
     }
 
     _read() {}
-
-    abort() {
-    //  this.destroy();
-    }
-
-/*destroy() {
-
-}*/
 };
 
 const handlers = {};
@@ -102,6 +95,7 @@ const PartialError = class extends Error {
             });
         }
         else {
+            // eslint-disable-next-line no-caller
             Error.captureStackTrace(this, arguments.callee);
         }
 
