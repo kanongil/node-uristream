@@ -20,7 +20,7 @@
     "debug": "^4.1.1",
     "mime-types": "^2.0.10",
     "oncemore": "^1.0.0",
-    "readable-stream": "^3.3.0"
+    "readable-stream": "^3.6.0"
   },
   "engines": {
     "node": ">=10.13.0"

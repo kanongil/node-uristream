@@ -7,7 +7,7 @@ const Boom = require('@hapi/boom');
 
 const UriReader = class extends Readable {
 
-    constructor(uri, { highWaterMark, autoDestroy = false, emitClose = true, ...options }) {
+    constructor(uri, { highWaterMark, autoDestroy = true, emitClose = true, ...options }) {
 
         options = options || {};
 
