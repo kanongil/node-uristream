@@ -13,24 +13,24 @@
   "author": "Gil Pedersen <gpdev@gpost.dk>",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "@hapi/boom": "^8.0.1",
-    "@hapi/hoek": "^8.3.2",
-    "@hapi/wreck": "^16.0.1",
+    "@hapi/boom": "^9.1.0",
+    "@hapi/hoek": "^9.0.4",
     "dataurl": "~0.1.0",
     "debug": "^4.1.1",
+    "got": "^11.2.0",
     "mime-types": "^2.0.10",
     "oncemore": "^1.0.0",
     "readable-stream": "^3.6.0"
   },
   "engines": {
-    "node": ">=10.13.0"
+    "node": ">=12.12.0"
   },
   "directories": {
     "test": "test"
   },
   "devDependencies": {
-    "@hapi/code": "^7.0.0",
-    "@hapi/lab": "^21.0.0"
+    "@hapi/code": "^8.0.1",
+    "@hapi/lab": "^22.0.4"
   },
   "keywords": [
     "protocol",
