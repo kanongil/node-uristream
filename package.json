@@ -1,6 +1,6 @@
 {
   "name": "uristream",
-  "version": "5.0.2",
+  "version": "6.0.0",
   "description": "Stream from URI-based resources",
   "main": "uristream.js",
   "scripts": {
