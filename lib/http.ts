@@ -1,4 +1,5 @@
 import type { Agent as HttpsAgent } from 'https';
+import type { Socket } from 'net';
 import type { UrlObject } from 'url';
 import type { Readable, Transform, Writable } from 'stream';
 
@@ -182,6 +183,18 @@ export class UriHttpReader extends UriReader {
                 decompress: false, /* handled manually */
                 http2: true,
                 throwHttpErrors: false
+            });
+
+            // Set no delay on socket
+
+            req.on('socket', (connection: Socket) => {
+
+                try {
+                    connection.setNoDelay(true);
+                }
+                catch (err) {
+                    // HTTP/2 sockets already use noDelay, and throw when called directly on socket.
+                }
             });
 
             req.on('error', failOrRetry);
