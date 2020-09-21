@@ -1,26 +1,27 @@
-'use strict';
-
 // RFC 1738 file: URI support
 
-const Mime = require('mime-types');
-const Fs = require('fs');
-const Url = require('url');
-const Util = require('util');
+import type { Readable } from 'stream';
+import Fs = require('fs');
+import { format, UrlObject } from 'url';
+import { promisify } from 'util';
 
-const Boom = require('@hapi/boom');
-const Hoek = require('@hapi/hoek');
-const Oncemore = require('oncemore');
+import Boom = require('@hapi/boom');
+import { ignore } from '@hapi/hoek';
+import { lookup } from 'mime-types';
+import Oncemore = require('oncemore');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const debug = require('debug')('uristream:file');
 
-const { register } = require('./registry');
-const { UriReader } = require('./uri-reader');
+import { register } from './registry';
+import { UriReader, SharedReaderOptions } from './uri-reader';
+
+
+export type FileReaderOptions = SharedReaderOptions;
 
 
 const PREFIX = 'file://';
 
-const noop = function () {};
-
-const pump = function (src, dst) {
+const pump = function <S extends Readable, D extends Readable> (src: S, dst: D): Promise<void> {
 
     return new Promise((resolve, reject) => {
 
@@ -31,9 +32,10 @@ const pump = function (src, dst) {
             }
         });
 
-        Oncemore(src).once('end', 'error', (err) => {
+        Oncemore(src).once('end', 'error', (err: Error) => {
+
             // TODO: flush source buffer on error?
-            dst._read = noop;
+            dst._read = ignore;
 
             err ? reject(err) : resolve();
         });
@@ -45,23 +47,27 @@ const pump = function (src, dst) {
     });
 };
 
-const UriFileReader = class extends UriReader {
+export class UriFileReader extends UriReader {
 
-    constructor(uri, options = {}) {
+    private _timeoutId?: NodeJS.Timeout;
+    private _src?: Fs.ReadStream;
+
+    readonly path: string;
+
+    constructor(uri: string | UrlObject, options: FileReaderOptions = {}) {
 
         super(uri, options);
 
-        if (uri.slice(0,PREFIX.length) !== PREFIX) {
-            throw Boom.badRequest('invalid uri prefix: ' + uri);
+        if (this.url.href.slice(0,PREFIX.length) !== PREFIX) {
+            throw Boom.badRequest('invalid uri prefix: ' + this.url.href);
         }
 
         if (!(this.url.host === '' || this.url.host === 'localhost')) {
-            throw Boom.badRequest('only local file uri\' are supported: ' + uri);
+            throw Boom.badRequest('only local file uri\' are supported: ' + this.url.href);
         }
 
-        this.path = this.url.path;
+        this.path = this.url.path!;
 
-        this._timeoutId = null;
         if (this.timeout) {
             this._timeoutId = setTimeout(() => {
 
@@ -72,22 +78,24 @@ const UriFileReader = class extends UriReader {
         this.process().catch(this.destroy.bind(this));
     }
 
-    _read() {}
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    _read(): void {}
 
-    async process() {
+    async process(): Promise<void> {
 
-        const uri = Url.format(this.url);
+        const uri = format(this.url);
         let stats;
         let fd;
+        let bytes: number;
 
         try {
             try {
                 if (this.probe) {
-                    stats = await Util.promisify(Fs.stat)(this.path);
+                    stats = await promisify(Fs.stat)(this.path);
                 }
                 else {
-                    fd = await Util.promisify(Fs.open)(this.path);
-                    stats = await Util.promisify(Fs.fstat)(fd);
+                    fd = await promisify(Fs.open)(this.path, 'r');
+                    stats = await promisify(Fs.fstat)(fd);
                 }
             }
             catch (thrownErr) {
@@ -110,14 +118,14 @@ const UriFileReader = class extends UriReader {
                 throw Boom.forbidden('directory listing is not allowed');
             }
 
-            const limit = (this.end >= 0) ? this.end + 1 : stats.size;
-            var bytes = limit - this.start;
+            const limit = (this.end! >= 0) ? this.end! + 1 : stats.size;
+            bytes = limit - this.start;
 
             if (limit > stats.size || bytes < 0) {
                 throw Boom.rangeNotSatisfiable();
             }
 
-            const meta = { url: uri, mime: Mime.lookup(this.path) || 'application/octet-stream', size: stats.size, modified: stats.mtime };
+            const meta = { url: uri, mime: lookup(this.path) || 'application/octet-stream', size: stats.size, modified: stats.mtime };
             this.meta = meta;
             this.emit('meta', this.meta);
 
@@ -134,7 +142,7 @@ const UriFileReader = class extends UriReader {
         }
         catch (err) {
             if (fd !== undefined) {
-                Fs.close(fd, Hoek.ignore);
+                Fs.close(fd, ignore);
             }
 
             throw err;
@@ -142,7 +150,7 @@ const UriFileReader = class extends UriReader {
 
         this._src.on('close', () => {
 
-            this._src = null;
+            this._src = undefined;
         });
 
         const finished = pump(this._src, this);
@@ -173,17 +181,15 @@ const UriFileReader = class extends UriReader {
         this.push(null);
     }
 
-    _destroy(err, cb) {
+    _destroy(err: Error | null, cb: (err?: Error | null) => void): void {
 
-        clearTimeout(this._timeoutId);
+        clearTimeout(this._timeoutId as NodeJS.Timeout);
         if (this._src) {
             this._src.destroy();
         }
 
         return super._destroy(err, cb);
     }
-};
+}
 
 register('file', UriFileReader);
-
-module.exports = exports = UriFileReader;

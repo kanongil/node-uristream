@@ -1,12 +1,10 @@
-'use strict';
+export class PartialError extends Error {
 
-exports.PartialError = class PartialError extends Error {
-
-    constructor(err, processed, expected) {
+    constructor(err: Error, readonly processed: number, readonly expected: number) {
 
         super();
 
-        if (err.stack) {
+        if (!Object.getOwnPropertyDescriptor(err, 'stack')) {
             Object.defineProperty(this, 'stack', {
                 enumerable: false,
                 configurable: false,
@@ -25,6 +23,6 @@ exports.PartialError = class PartialError extends Error {
         this.processed = processed || -1;
         this.expected = expected;
     }
-};
+}
 
 exports.PartialError.prototype.name = 'Partial Error';

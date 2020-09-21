@@ -4,6 +4,9 @@
   "description": "Stream from URI-based resources",
   "main": "uristream.js",
   "scripts": {
+    "clean": "rm -f lib/*.{js,d.ts}",
+    "postpack": "npm run clean",
+    "prepack": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,7 +22,7 @@
     "debug": "^4.1.1",
     "got": "^11.2.0",
     "mime-types": "^2.0.10",
-    "oncemore": "^1.0.0",
+    "oncemore": "^1.2.0",
     "readable-stream": "^3.6.0"
   },
   "engines": {
@@ -30,7 +33,13 @@
   },
   "devDependencies": {
     "@hapi/code": "^8.0.1",
-    "@hapi/lab": "^23.0.0"
+    "@hapi/eslint-plugin": "^5.0.0",
+    "@hapi/lab": "^23.0.0",
+    "@types/mime-types": "^2.1.0",
+    "@types/readable-stream": "^2.3.9",
+    "@typescript-eslint/eslint-plugin": "~4.1.1",
+    "@typescript-eslint/parser": "~4.1.1",
+    "typescript": "~4.0.3"
   },
   "keywords": [
     "protocol",

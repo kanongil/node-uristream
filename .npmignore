@@ -1,3 +1,5 @@
 *
 !/uristream.js
-!/lib/**.js
+!/uristream.d.ts
+!lib/**/*.js
+!lib/**/*.d.ts

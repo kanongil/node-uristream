@@ -1,28 +1,41 @@
-'use strict';
+import type { Agent as HttpsAgent } from 'https';
+import type { UrlObject } from 'url';
+import type { Readable, Transform, Writable } from 'stream';
 
-const Http = require('http');
-const Util = require('util');
-const Zlib = require('zlib');
+import { Agent as HttpAgent, IncomingMessage } from 'http';
+import { format } from 'util';
+import { createBrotliDecompress, createUnzip } from 'zlib';
 
-const Boom = require('@hapi/boom');
-const Got = require('got');
-const Hoek = require('@hapi/hoek');
-const Oncemore = require('oncemore');
+import { Boom, badRequest, badImplementation, conflict } from '@hapi/boom';
+import Got, { Agents } from 'got';
+import { applyToDefaults, deepEqual, ignore } from '@hapi/hoek';
+import Oncemore = require('oncemore');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const debug = require('debug')('uristream:http');
 
-const { PartialError } = require('./partial-error');
-const { register } = require('./registry');
-const { UriReader } = require('./uri-reader');
+import { PartialError } from './partial-error';
+import { register } from './registry';
+import { UriReader, SharedReaderOptions } from './uri-reader';
 
 
-const Pkg = require('../package');
+export type HttpReaderOptions = SharedReaderOptions & {
+    /** Amount of possible retries (HTTP-only) */
+    retries?: number;
+    /** Extra headers for request (HTTP-only) */
+    headers?: Record<string, string | string[]>;
+    /** Custom Agent(s) (HTTP-only) */
+    agent?: Agents | typeof HttpAgent;
+};
 
-const DEFAULT_AGENT = Util.format('%s/v%s got/v%s node.js/%s', Pkg.name, Pkg.version, require('got/package').version, process.version);
+import * as Pkg from '../package.json';
+import { version as GotVersion } from 'got/package.json';
+
+const DEFAULT_AGENT = format('%s/v%s got/v%s node.js/%s', Pkg.name, Pkg.version, GotVersion, process.version);
 
 // forward errors emitted upstream
-const inheritErrors = function (stream) {
+const inheritErrors = function <T extends Writable>(stream: T): T {
 
-    const onError = (err) => {
+    const onError = (err: Error) => {
 
         stream.destroy(err);
     };
@@ -34,7 +47,7 @@ const inheritErrors = function (stream) {
 };
 
 // 'pipe' any stream to a Readable
-const pump = function (src, dst, { skip = 0, limit = -1 } = {}, done) {
+const pump = function (src: Readable, dst: Readable & { transferred?: number }, { skip = 0, limit = -1 } = {}, done: (err?: Error) => void) {
 
     dst.transferred = dst.transferred || 0;
 
@@ -65,13 +78,13 @@ const pump = function (src, dst, { skip = 0, limit = -1 } = {}, done) {
             src.pause();
         }
 
-        if (limit === 0 && !src._readableState.ended) {
+        if (limit === 0 && !src.readableEnded) {
             src.destroy();
         }
     });
     Oncemore(src).once('end', 'error', (err) => {
         // TODO: flush source buffer on error?
-        dst._read = Hoek.ignore;
+        dst._read = ignore;
         done(err);
     });
     dst._read = (n) => {
@@ -80,22 +93,25 @@ const pump = function (src, dst, { skip = 0, limit = -1 } = {}, done) {
     };
 };
 
-const UriHttpReader = class extends UriReader {
+export class UriHttpReader extends UriReader {
 
-    constructor(uri, options = {}) {
+    transferred = 0;
+
+    constructor(uri: string | UrlObject, options: HttpReaderOptions = {}) {
 
         super(uri, { ...options, emitClose: true });
 
-        this.transferred = 0;
-
-        const defaults = {
+        const defaults: Record<string, string | string[]> = {
             'user-agent': DEFAULT_AGENT
         };
 
         const offset = this.start;
-        const agent = options.agent instanceof Http.Agent ? { http: options.agent, https: options.agent } : options.agent || null;
+        const agent = options.agent instanceof HttpAgent ? {
+            http: options.agent as HttpAgent,
+            https: options.agent as HttpsAgent
+        } : options.agent as Agents || undefined;
 
-        let tries = 1 + (+options.retries || 1);
+        let tries = 1 + (+options.retries! || 1);
         if (!this.probe) {
             defaults['accept-encoding'] = ['gzip', 'deflate', 'br'];
         }
@@ -103,18 +119,18 @@ const UriHttpReader = class extends UriReader {
         const fetchMethod = this.probe ? 'HEAD' : 'GET';
 
         // TODO: handle case in header names
-        const headers = Hoek.applyToDefaults(defaults, options.headers || {}, { nullOverride: true });
+        const headers = applyToDefaults(defaults, options.headers || {}, { nullOverride: true });
         if ('range' in headers) {
-            throw Boom.badRequest('Range header is not allowed - use start and end options');
+            throw badRequest('Range header is not allowed - use start and end options');
         }
 
         // attach empty 'error' listener to keep from ever throwing
-        this.on('error', Hoek.ignore);
+        this.on('error', ignore);
 
-        const fetchHttp = (start) => {
+        const fetchHttp = (start: number): void => {
 
-            if (start > 0 || this.end >= 0) {
-                headers.range = 'bytes=' + start + '-' + (this.end >= 0 ? this.end : '');
+            if (start > 0 || this.end! >= 0) {
+                headers.range = 'bytes=' + start + '-' + (this.end! >= 0 ? this.end : '');
                 // content-encoding + range is very ambigous, so disable encoding
                 delete headers['accept-encoding'];
             }
@@ -131,7 +147,7 @@ const UriHttpReader = class extends UriReader {
             };
 
             let failed = false;
-            const failOrRetry = (err, permanent) => {
+            const failOrRetry = (err: Error, permanent = true) => {
 
                 if (failed) {
                     return;
@@ -156,7 +172,7 @@ const UriHttpReader = class extends UriReader {
             };
 
             let size = -1;
-            const req = Got.stream(uri, {
+            const req = Got.stream(this.url.href, {
                 method: fetchMethod,
                 headers,
                 agent,
@@ -170,26 +186,26 @@ const UriHttpReader = class extends UriReader {
 
             req.on('error', failOrRetry);
 
-            req.on('response', (res) => {
+            req.on('response', (res: IncomingMessage) => {
 
-                const isPermanent = (code) => {
+                const isPermanent = (code: number) => {
                     // very conservative list of permanent response codes
                     return code === 301 || code === 400 || code === 401 || code === 410 || code === 501;
                 };
 
-                if (res.statusCode >= 400) {
-                    return failOrRetry(new Boom.Boom(null, { statusCode: res.statusCode }), isPermanent(res.statusCode));
+                if (res.statusCode! >= 400) {
+                    return failOrRetry(new Boom(undefined, { statusCode: res.statusCode }), isPermanent(res.statusCode!));
                 }
 
                 if (res.statusCode !== 200 && res.statusCode !== 204 && res.statusCode !== 206 && res.statusCode !== 304) {
-                    return failOrRetry(new Boom.Boom(`Unhandled response code: ${res.statusCode}`), isPermanent(res.statusCode));
+                    return failOrRetry(new Boom(`Unhandled response code: ${res.statusCode}`), isPermanent(res.statusCode!));
                 }
 
                 // handle servers that doesn't support range requests
                 const cut = res.statusCode !== 206;
                 const range = {
                     skip: start,
-                    limit: this.end >= 0 ? this.end + 1 - start : -1
+                    limit: this.end! >= 0 ? this.end! + 1 - start : -1
                 };
 
                 if (cut) {
@@ -204,7 +220,7 @@ const UriHttpReader = class extends UriReader {
 
                 if (res.statusCode === 206) {
                     // We assume that the full requested range is returned
-                    const match = /bytes.+\/(\d+)/.exec(res.headers['content-range']);
+                    const match = /bytes.+\/(\d+)/.exec(res.headers['content-range']!);
                     if (match) {
                         size = parseInt(match[1], 10);
                     }
@@ -220,7 +236,7 @@ const UriHttpReader = class extends UriReader {
 
                 // Transparently handle compressed responses
 
-                let stream = req;
+                let stream: Readable = req;
                 const decompressor = this._createDecompressor(res);
                 if (decompressor) {
                     stream = stream.pipe(inheritErrors(decompressor));
@@ -256,7 +272,7 @@ const UriHttpReader = class extends UriReader {
                         const target = range.limit >= 0 ? range.limit : size - range.skip;
 
                         if (!err && accumRaw !== target) {
-                            req.destroy(Boom.badImplementation('Stream length did not match header'));
+                            req.destroy(badImplementation('Stream length did not match header'));
                         }
                     });
                 }
@@ -266,7 +282,7 @@ const UriHttpReader = class extends UriReader {
                 pump(stream, this, cut ? range : undefined, (err) => {
 
                     if (err || failed) {
-                        return failOrRetry(err);
+                        return failOrRetry(err || new Error('already failed'));
                     }
 
                     debug('done fetching uri', uri);
@@ -275,12 +291,12 @@ const UriHttpReader = class extends UriReader {
                 });
 
                 // extract meta information from header
-                const typeparts = /^(.+?\/.+?)(?:;\w*.*)?$/.exec(res.headers['content-type']) || [null, 'application/octet-stream'];
-                const mimetype = typeparts[1].toLowerCase();
+                const typeparts = /^(.+?\/.+?)(?:;\w*.*)?$/.exec(res.headers['content-type']!) || [null, 'application/octet-stream'];
+                const mimetype = typeparts[1]!.toLowerCase();
                 const modified = res.headers['last-modified'] ? new Date(res.headers['last-modified']) : null;
-                const etag = res.headers.etag;
+                const etag = res.headers.etag as string | undefined;
 
-                const location = res.redirectUrls.length ? res.redirectUrls[res.redirectUrls.length - 1] : res.requestUrl;
+                const location = res.url || this.url.href;
                 const meta = { url: location, mime: mimetype, size: filesize, modified, etag };
                 if (this.meta) {
                     // ignore change from unknown to know size
@@ -288,35 +304,33 @@ const UriHttpReader = class extends UriReader {
                         meta.size = this.meta.size;
                     }
 
-                    if (!Hoek.deepEqual(this.meta, meta, { symbols: false })) {
+                    if (!deepEqual(this.meta, meta, { symbols: false })) {
                         tries = 0;
-                        failOrRetry(Boom.conflict('file has changed'));
+                        failOrRetry(conflict('file has changed'));
                     }
                 }
                 else {
                     this.meta = meta;
                     this.emit('meta', this.meta);
                 }
-            }, failOrRetry);
+            });
         };
 
         fetchHttp(offset);
     }
 
-    _createDecompressor(res) {
+    _createDecompressor(res: IncomingMessage): Transform | undefined {
 
         if (res.headers['content-encoding'] === 'gzip' ||
             res.headers['content-encoding'] === 'deflate') {
 
-            return Zlib.createUnzip();
+            return createUnzip();
         }
 
         if (res.headers['content-encoding'] === 'br') {
-            return Zlib.createBrotliDecompress();
+            return createBrotliDecompress();
         }
     }
-};
+}
 
 register(['http', 'https'], UriHttpReader);
-
-module.exports = exports = UriHttpReader;
