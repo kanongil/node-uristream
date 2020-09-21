@@ -15,8 +15,7 @@ export class PartialError extends Error {
             });
         }
         else {
-            // eslint-disable-next-line no-caller
-            Error.captureStackTrace(this, arguments.callee);
+            Error.captureStackTrace(this);
         }
 
         this.message = err.message || err.toString();
