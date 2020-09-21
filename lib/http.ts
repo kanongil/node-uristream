@@ -148,7 +148,7 @@ export class UriHttpReader extends UriReader {
             };
 
             let failed = false;
-            const failOrRetry = (err: Error, permanent = true) => {
+            const failOrRetry = (err: Error, permanent = false) => {
 
                 if (failed) {
                     return;
