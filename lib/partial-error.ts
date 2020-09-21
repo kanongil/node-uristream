@@ -4,7 +4,7 @@ export class PartialError extends Error {
 
         super();
 
-        if (!Object.getOwnPropertyDescriptor(err, 'stack')) {
+        if (Object.getOwnPropertyDescriptor(err, 'stack')) {
             Object.defineProperty(this, 'stack', {
                 enumerable: false,
                 configurable: false,
