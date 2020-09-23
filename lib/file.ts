@@ -173,7 +173,7 @@ export class UriFileReader extends UriReader {
         }
         catch (err) {
             // TODO: retry??
-            throw Boom.badImplementation('transmission error', err);
+            throw Boom.internal('transmission error', err);
         }
 
         debug('done fetching uri', uri);

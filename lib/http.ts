@@ -7,7 +7,7 @@ import { Agent as HttpAgent, IncomingMessage } from 'http';
 import { format } from 'util';
 import { createBrotliDecompress, createUnzip } from 'zlib';
 
-import { Boom, badRequest, badImplementation, conflict } from '@hapi/boom';
+import { Boom, badRequest, badImplementation, conflict, boomify } from '@hapi/boom';
 import Got, { Agents } from 'got';
 import { applyToDefaults, deepEqual, ignore } from '@hapi/hoek';
 import Oncemore = require('oncemore');
@@ -158,6 +158,10 @@ export class UriHttpReader extends UriReader {
 
                 req.destroy();
                 if (--tries <= 0 || permanent) {
+                    if (!(err instanceof Boom)) {
+                        boomify(err);
+                    }
+
                     // remap error to partial error if we have received any data
                     if (this.transferred !== 0) {
                         err = new PartialError(err, this.transferred, (size !== -1) ? start - offset + size : size);
