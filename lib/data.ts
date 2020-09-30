@@ -28,11 +28,11 @@ export class UriDataReader extends UriReader {
         }
 
         const meta = { url: uri, mime: parsed.mimetype, size: parsed.data.length, modified: null };
-        const limit = (this.end! >= 0) ? this.end! + 1 : meta.size;
-        const bytes = limit - this.start;
-
-        if (limit > meta.size || bytes < 0) {
-            return this.destroy(rangeNotSatisfiable());
+        const limit = (this.end! >= 0) ? Math.min(this.end! + 1, meta.size) : meta.size;
+        if (limit - this.start < 0) {
+            const error = rangeNotSatisfiable();
+            (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + meta.size;
+            return this.destroy(error);
         }
 
         process.nextTick(() => {
@@ -41,7 +41,7 @@ export class UriDataReader extends UriReader {
             this.emit('meta', meta);
 
             if (!this.probe) {
-                this.push(parsed.data.slice(this.start, this.end! >= 0 ? this.end! + 1 : undefined));
+                this.push(parsed.data.slice(this.start, limit));
             }
 
             this.push(null);

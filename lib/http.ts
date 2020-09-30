@@ -7,7 +7,7 @@ import { Agent as HttpAgent, IncomingMessage } from 'http';
 import { format } from 'util';
 import { createBrotliDecompress, createUnzip } from 'zlib';
 
-import { Boom, badRequest, badImplementation, conflict, boomify } from '@hapi/boom';
+import { Boom, badRequest, badImplementation, conflict, boomify, rangeNotSatisfiable } from '@hapi/boom';
 import Got, { Agents } from 'got';
 import { applyToDefaults, deepEqual, ignore } from '@hapi/hoek';
 import Oncemore = require('oncemore');
@@ -164,7 +164,7 @@ export class UriHttpReader extends UriReader {
 
                     // remap error to partial error if we have received any data
                     if (this.transferred !== 0) {
-                        err = new PartialError(err, this.transferred, (size !== -1) ? start - offset + size : size);
+                        err = new PartialError(err, this.transferred, (contentLength !== -1) ? start - offset + contentLength : contentLength);
                     }
 
                     return this.destroy(err);
@@ -176,7 +176,7 @@ export class UriHttpReader extends UriReader {
                 fetchHttp(offset + this.transferred);
             };
 
-            let size = -1;
+            let contentLength = -1;
             const req = Got.stream(this.url.href, {
                 method: fetchMethod,
                 headers,
@@ -236,20 +236,31 @@ export class UriHttpReader extends UriReader {
                 }
 
                 if (res.statusCode === 206) {
-                    // We assume that the full requested range is returned
+                    // We assume that the requested range is returned (up to content-length - 1)
                     const match = /bytes.+\/(\d+)/.exec(res.headers['content-range']!);
                     if (match) {
-                        size = parseInt(match[1], 10);
+                        contentLength = parseInt(match[1], 10);
                     }
                 }
                 else if (res.statusCode === 204) {
-                    size = 0;
+                    contentLength = 0;
                 }
                 else if (res.headers['content-length']) {
-                    size = parseInt(res.headers['content-length'], 10);
+                    contentLength = parseInt(res.headers['content-length'], 10);
                 }
 
-                let filesize = (size >= 0) ? size : -1;
+                let target = contentLength - range.skip;
+                if (range.limit >= 0) {
+                    target = Math.min(range.limit, target);
+                }
+
+                if (target < 0) {
+                    const error = rangeNotSatisfiable();
+                    (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + contentLength;
+                    return this.destroy(error);
+                }
+
+                let filesize = contentLength;
 
                 // Transparently handle compressed responses
 
@@ -257,18 +268,21 @@ export class UriHttpReader extends UriReader {
                 const decompressor = this._createDecompressor(res);
                 if (decompressor) {
                     stream = stream.pipe(inheritErrors(decompressor));
+
+                    // For compressed entities we don't know the decompressed size
+
                     filesize = -1;
                 }
 
                 // Turn bad content-length into actual errors
 
-                if (!this.probe && (size >= 0 || range.limit >= 0)) {
-                    if (size >= 0) {
+                if (!this.probe && (contentLength >= 0 || range.limit >= 0)) {
+                    if (contentLength >= 0) {
                         // 'downloadProgress' event cannot be used, since it is not emitted after 100%
                         req.on('data', () => {
 
                             const { transferred } = req.downloadProgress;
-                            if (transferred > size) {
+                            if (transferred > contentLength) {
                                 req.destroy();
                             }
                         });
@@ -286,7 +300,6 @@ export class UriHttpReader extends UriReader {
                             }
                         }
 
-                        const target = range.limit >= 0 ? range.limit : size - range.skip;
 
                         if (!err && accumRaw !== target) {
                             req.destroy(badImplementation('Stream length did not match header'));

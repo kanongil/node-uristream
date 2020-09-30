@@ -5,7 +5,7 @@ import Fs = require('fs');
 import { format, UrlObject } from 'url';
 import { promisify } from 'util';
 
-import Boom = require('@hapi/boom');
+import * as Boom from '@hapi/boom';
 import { ignore } from '@hapi/hoek';
 import { lookup } from 'mime-types';
 import Oncemore = require('oncemore');
@@ -118,11 +118,13 @@ export class UriFileReader extends UriReader {
                 throw Boom.forbidden('directory listing is not allowed');
             }
 
-            const limit = (this.end! >= 0) ? this.end! + 1 : stats.size;
+            const limit = (this.end! >= 0) ? Math.min(this.end! + 1, stats.size) : stats.size;
             bytes = limit - this.start;
 
-            if (limit > stats.size || bytes < 0) {
-                throw Boom.rangeNotSatisfiable();
+            if (bytes < 0) {
+                const error = Boom.rangeNotSatisfiable();
+                (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + stats.size;
+                throw error;
             }
 
             const meta = { url: uri, mime: lookup(this.path) || 'application/octet-stream', size: stats.size, modified: stats.mtime };
@@ -137,7 +139,7 @@ export class UriFileReader extends UriReader {
             this._src = Fs.createReadStream(this.path, {
                 fd,
                 start: this.start,
-                end: this.end
+                end: limit - 1
             });
         }
         catch (err) {
@@ -159,9 +161,6 @@ export class UriFileReader extends UriReader {
         this._src.on('data', (chunk) => {
 
             accum += chunk.length;
-            if (accum > bytes && this._src) {
-                this._src.destroy();
-            }
         });
 
         try {
