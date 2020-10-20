@@ -34,7 +34,7 @@
   "devDependencies": {
     "@hapi/code": "^8.0.1",
     "@hapi/eslint-plugin": "^5.0.0",
-    "@hapi/lab": "^23.0.0",
+    "@hapi/lab": "^24.0.0",
     "@types/mime-types": "^2.1.0",
     "@types/readable-stream": "^2.3.9",
     "@typescript-eslint/eslint-plugin": "~4.1.1",
