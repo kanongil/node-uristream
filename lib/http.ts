@@ -254,7 +254,7 @@ export class UriHttpReader extends UriReader {
                     target = Math.min(range.limit, target);
                 }
 
-                if (target < 0) {
+                if (contentLength >= 0 && target < 0) {
                     const error = rangeNotSatisfiable();
                     (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + contentLength;
                     return this.destroy(error);
