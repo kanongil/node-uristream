@@ -1,4 +1,4 @@
-import type { Agent as HttpsAgent } from 'https';
+import { Agent as HttpsAgent } from 'https';
 import type { Socket } from 'net';
 import type { UrlObject } from 'url';
 import type { Readable, Transform, Writable } from 'stream';
@@ -11,6 +11,7 @@ import { Boom, badRequest, badImplementation, conflict, boomify, rangeNotSatisfi
 import Got, { Agents } from 'got';
 import { version as GotVersion } from 'got/package.json';
 import { applyToDefaults, deepEqual, ignore } from '@hapi/hoek';
+import Keepalive = require('agentkeepalive');
 import Oncemore = require('oncemore');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const debug = require('debug')('uristream:http');
@@ -83,7 +84,27 @@ const internals = {
 
             src.resume();
         };
-    }
+    },
+
+    agents(): Agents {
+
+        if (!internals._agents) {
+            const config = {
+                maxSockets: 6,
+                maxFreeSockets: 6,
+                timeout: 0, // disable socket inactivity timeout
+                freeSocketTimeout: 60000, // free unused sockets after 60 seconds
+            };
+
+            internals._agents = {
+                http: new Keepalive(config),
+                https: new Keepalive.HttpsAgent(config)
+            };
+        }
+
+        return internals._agents;
+    },
+    _agents: undefined as unknown as Agents
 };
 
 
@@ -113,7 +134,7 @@ export class UriHttpReader extends UriReader {
         const agent = options.agent instanceof HttpAgent ? {
             http: options.agent as HttpAgent,
             https: options.agent as HttpsAgent
-        } : options.agent as Agents || undefined;
+        } : options.agent as Agents || internals.agents();
 
         let tries = 1 + (+options.retries! || 1);
         if (!this.probe) {
@@ -188,7 +209,7 @@ export class UriHttpReader extends UriReader {
                 maxRedirects: 10,
                 retry: 0, /* handled manually */
                 decompress: false, /* handled manually */
-                http2: true,
+                http2: false,
                 throwHttpErrors: false
             });
 
