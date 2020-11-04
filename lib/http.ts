@@ -9,6 +9,7 @@ import { createBrotliDecompress, createUnzip } from 'zlib';
 
 import { Boom, badRequest, badImplementation, conflict, boomify, rangeNotSatisfiable } from '@hapi/boom';
 import Got, { Agents } from 'got';
+import { version as GotVersion } from 'got/package.json';
 import { applyToDefaults, deepEqual, ignore } from '@hapi/hoek';
 import Oncemore = require('oncemore');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -17,6 +18,73 @@ const debug = require('debug')('uristream:http');
 import { PartialError } from './partial-error';
 import { register } from './registry';
 import { UriReader, SharedReaderOptions } from './uri-reader';
+import * as Pkg from '../package.json';
+
+
+const internals = {
+    defaultAgent: format('%s/v%s got/v%s node.js/%s', Pkg.name, Pkg.version, GotVersion, process.version),
+
+    // forward errors emitted upstream
+    inheritErrors<T extends Writable>(stream: T): T {
+
+        const onError = (err: Error) => {
+
+            stream.destroy(err);
+        };
+
+        stream.on('pipe', (source) => source.on('error', onError));
+        stream.on('unpipe', (source) => source.removeListener('error', onError));
+
+        return stream;
+    },
+
+    // 'pipe' any stream to a Readable
+    pump(src: Readable, dst: Readable & { transferred?: number }, { skip = 0, limit = -1 } = {}, done: (err?: Error) => void) {
+
+        dst.transferred = dst.transferred || 0;
+
+        src.on('data', (chunk) => {
+
+            if (skip !== 0) {
+                skip -= chunk.length;
+                if (skip >= 0) {
+                    return;
+                }
+
+                chunk = chunk.slice(skip);
+                skip = 0;
+            }
+
+            if (limit >= 0) {
+                if (chunk.length < limit) {
+                    limit -= chunk.length;
+                }
+                else {
+                    chunk = chunk.slice(0, limit);
+                    limit = 0;
+                }
+            }
+
+            dst.transferred += chunk.length;
+            if (!dst.push(chunk)) {
+                src.pause();
+            }
+
+            if (limit === 0 && !src.readableEnded) {
+                src.destroy();
+            }
+        });
+        Oncemore(src).once('end', 'error', (err) => {
+            // TODO: flush source buffer on error?
+            dst._read = ignore;
+            done(err);
+        });
+        dst._read = (n) => {
+
+            src.resume();
+        };
+    }
+};
 
 
 export type HttpReaderOptions = SharedReaderOptions & {
@@ -28,71 +96,6 @@ export type HttpReaderOptions = SharedReaderOptions & {
     agent?: Agents | typeof HttpAgent;
 };
 
-import * as Pkg from '../package.json';
-import { version as GotVersion } from 'got/package.json';
-
-const DEFAULT_AGENT = format('%s/v%s got/v%s node.js/%s', Pkg.name, Pkg.version, GotVersion, process.version);
-
-// forward errors emitted upstream
-const inheritErrors = function <T extends Writable>(stream: T): T {
-
-    const onError = (err: Error) => {
-
-        stream.destroy(err);
-    };
-
-    stream.on('pipe', (source) => source.on('error', onError));
-    stream.on('unpipe', (source) => source.removeListener('error', onError));
-
-    return stream;
-};
-
-// 'pipe' any stream to a Readable
-const pump = function (src: Readable, dst: Readable & { transferred?: number }, { skip = 0, limit = -1 } = {}, done: (err?: Error) => void) {
-
-    dst.transferred = dst.transferred || 0;
-
-    src.on('data', (chunk) => {
-
-        if (skip !== 0) {
-            skip -= chunk.length;
-            if (skip >= 0) {
-                return;
-            }
-
-            chunk = chunk.slice(skip);
-            skip = 0;
-        }
-
-        if (limit >= 0) {
-            if (chunk.length < limit) {
-                limit -= chunk.length;
-            }
-            else {
-                chunk = chunk.slice(0, limit);
-                limit = 0;
-            }
-        }
-
-        dst.transferred += chunk.length;
-        if (!dst.push(chunk)) {
-            src.pause();
-        }
-
-        if (limit === 0 && !src.readableEnded) {
-            src.destroy();
-        }
-    });
-    Oncemore(src).once('end', 'error', (err) => {
-        // TODO: flush source buffer on error?
-        dst._read = ignore;
-        done(err);
-    });
-    dst._read = (n) => {
-
-        src.resume();
-    };
-};
 
 export class UriHttpReader extends UriReader {
 
@@ -103,7 +106,7 @@ export class UriHttpReader extends UriReader {
         super(uri, { ...options, emitClose: true });
 
         const defaults: Record<string, string | string[]> = {
-            'user-agent': DEFAULT_AGENT
+            'user-agent': internals.defaultAgent
         };
 
         const offset = this.start;
@@ -267,7 +270,7 @@ export class UriHttpReader extends UriReader {
                 let stream: Readable = req;
                 const decompressor = this._createDecompressor(res);
                 if (decompressor) {
-                    stream = stream.pipe(inheritErrors(decompressor));
+                    stream = stream.pipe(internals.inheritErrors(decompressor));
 
                     // For compressed entities we don't know the decompressed size
 
@@ -309,7 +312,7 @@ export class UriHttpReader extends UriReader {
 
                 // Pipe it to self - MUST BE AFTER PREVIOUS SECTION TO CATCH SIZE ERRORS!!
 
-                pump(stream, this, cut ? range : undefined, (err) => {
+                internals.pump(stream, this, cut ? range : undefined, (err) => {
 
                     if (err || failed) {
                         return failOrRetry(err || new Error('already failed'));
