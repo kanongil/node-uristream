@@ -17,25 +17,25 @@ export class UriDataReader extends UriReader {
 
         super('data:', options);
 
-        if (typeof uri !== 'string') {
-            uri = format(uri);
-        }
-
-        const parsed = DataUrl.parse(uri);
-
-        if (!parsed || !parsed.data) {
-            return this.destroy(badData());
-        }
-
-        const meta = { url: uri, mime: parsed.mimetype, size: parsed.data.length, modified: null };
-        const limit = (this.end! >= 0) ? Math.min(this.end! + 1, meta.size) : meta.size;
-        if (limit - this.start < 0) {
-            const error = rangeNotSatisfiable();
-            (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + meta.size;
-            return this.destroy(error);
-        }
-
         process.nextTick(() => {
+
+            if (typeof uri !== 'string') {
+                uri = format(uri);
+            }
+
+            const parsed = DataUrl.parse(uri);
+
+            if (!parsed || !parsed.data) {
+                return this.destroy(badData());
+            }
+
+            const meta = { url: uri, mime: parsed.mimetype, size: parsed.data.length, modified: null };
+            const limit = (this.end! >= 0) ? Math.min(this.end! + 1, meta.size) : meta.size;
+            if (limit - this.start < 0) {
+                const error = rangeNotSatisfiable();
+                (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + meta.size;
+                return this.destroy(error);
+            }
 
             this.meta = meta;
             this.emit('meta', meta);

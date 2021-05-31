@@ -1,6 +1,8 @@
 // RFC 1738 file: URI support
 
 import type { Readable } from 'stream';
+import type { Readable as RsReadable } from 'readable-stream';
+
 import Fs = require('fs');
 import { format, UrlObject } from 'url';
 import { promisify } from 'util';
@@ -21,7 +23,7 @@ export type FileReaderOptions = SharedReaderOptions;
 
 const PREFIX = 'file://';
 
-const pump = function <S extends Readable, D extends Readable> (src: S, dst: D): Promise<void> {
+const pump = function <S extends Readable, D extends (Readable | RsReadable)> (src: S, dst: D): Promise<void> {
 
     return new Promise((resolve, reject) => {
 
@@ -180,7 +182,7 @@ export class UriFileReader extends UriReader {
         this.push(null);
     }
 
-    _destroy(err: Error | null, cb: (err?: Error | null) => void): void {
+    _destroy(err: Error | null, cb: (err: Error | null) => void): void {
 
         clearTimeout(this._timeoutId as NodeJS.Timeout);
         if (this._src) {
