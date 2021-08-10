@@ -138,6 +138,15 @@ export class UriFileReader extends UriReader {
                 return;
             }
 
+            if (limit <= 0) {
+
+                // No need to read an empty file
+
+                this.push(null);
+                Fs.close(fd, ignore);
+                return;
+            }
+
             this._src = Fs.createReadStream(this.path, {
                 fd,
                 start: this.start,
