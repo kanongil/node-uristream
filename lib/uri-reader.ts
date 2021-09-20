@@ -1,6 +1,6 @@
 import { parse, Url, UrlObject } from 'url';
 
-import { Readable } from 'readable-stream';
+import { Readable } from 'stream';
 
 export type SharedReaderOptions = {
     /** ReadableStream property that sets size of internal data buffer. Default undefined / let ReadableStream decide. */

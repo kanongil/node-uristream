@@ -2,7 +2,6 @@ import { Agent as HttpsAgent } from 'https';
 import type { Socket } from 'net';
 import type { UrlObject } from 'url';
 import type { Readable, Transform, Writable } from 'stream';
-import type { Readable as RsReadable } from 'readable-stream';
 
 import { Agent as HttpAgent, IncomingMessage } from 'http';
 import { format } from 'util';
@@ -41,7 +40,7 @@ const internals = {
     },
 
     // 'pipe' any stream to a Readable
-    pump(src: Readable, dst: (Readable | RsReadable) & { transferred?: number }, { skip = 0, limit = -1 } = {}, done: (err?: Error) => void) {
+    pump(src: Readable, dst: Readable & { transferred?: number }, { skip = 0, limit = -1 } = {}, done: (err?: Error) => void) {
 
         dst.transferred = dst.transferred || 0;
 
