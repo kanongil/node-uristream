@@ -360,8 +360,7 @@ export class UriHttpReader extends UriReader {
                     }
 
                     if (!deepEqual(this.meta, meta, { symbols: false })) {
-                        tries = 0;
-                        failOrRetry(conflict('file has changed'));
+                        failOrRetry(conflict('file has changed'), true);
                     }
                 }
                 else {
