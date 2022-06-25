@@ -286,63 +286,78 @@ export class UriHttpReader extends UriReader {
 
                 let filesize = contentLength;
 
-                // Transparently handle compressed responses
+                if (this.probe) {
+                    debug('done probing uri', uri);
 
-                let stream: Readable = req;
-                const decompressor = this._createDecompressor(res);
-                if (decompressor) {
-                    stream = stream.pipe(internals.inheritErrors(decompressor));
+                    if (res.headers['content-encoding'] &&
+                        res.headers['content-encoding'] !== 'identity') {
+                        filesize = -1;
+                    }
 
-                    // For compressed entities we don't know the decompressed size
-
-                    filesize = -1;
+                    req.resume();      // Ensure buffer empties
+                    failed = true;     // Disable failOrRetry handler 
+                    this.push(null);
                 }
+                else {
 
-                // Turn bad content-length into actual errors
+                    // Transparently handle compressed responses
 
-                if (!this.probe && (contentLength >= 0 || range.limit >= 0)) {
-                    if (contentLength >= 0) {
-                        // 'downloadProgress' event cannot be used, since it is not emitted after 100%
-                        req.on('data', () => {
+                    let stream: Readable = req;
+                    const decompressor = this._createDecompressor(res);
+                    if (decompressor) {
+                        stream = stream.pipe(internals.inheritErrors(decompressor));
 
-                            const { transferred } = req.downloadProgress;
-                            if (transferred > contentLength) {
-                                req.destroy();
+                        // For compressed entities we don't know the decompressed size
+
+                        filesize = -1;
+                    }
+
+                    // Turn bad content-length into actual errors
+
+                    if (contentLength >= 0 || range.limit >= 0) {
+                        if (contentLength >= 0) {
+                            // 'downloadProgress' event cannot be used, since it is not emitted after 100%
+                            req.on('data', () => {
+
+                                const { transferred } = req.downloadProgress;
+                                if (transferred > contentLength) {
+                                    req.destroy();
+                                }
+                            });
+                        }
+
+                        Oncemore(req).once('end', 'error', (err) => {
+
+                            let accumRaw = req.downloadProgress.transferred;
+                            if (cut) {
+                                // Trim to match
+                                accumRaw -= range.skip;
+
+                                if (range.limit >= 0) {
+                                    accumRaw = Math.min(accumRaw, range.limit);
+                                }
+                            }
+
+
+                            if (!err && accumRaw !== target) {
+                                req.destroy(badImplementation('Stream length did not match header'));
                             }
                         });
                     }
 
-                    Oncemore(req).once('end', 'error', (err) => {
+                    // Pipe it to self - MUST BE AFTER PREVIOUS SECTION TO CATCH SIZE ERRORS!!
 
-                        let accumRaw = req.downloadProgress.transferred;
-                        if (cut) {
-                            // Trim to match
-                            accumRaw -= range.skip;
+                    internals.pump(stream, this, cut ? range : undefined, (err) => {
 
-                            if (range.limit >= 0) {
-                                accumRaw = Math.min(accumRaw, range.limit);
-                            }
+                        if (err || failed) {
+                            return failOrRetry(err || new Error('already failed'));
                         }
 
+                        debug('done fetching uri', uri);
 
-                        if (!err && accumRaw !== target) {
-                            req.destroy(badImplementation('Stream length did not match header'));
-                        }
+                        this.push(null);
                     });
                 }
-
-                // Pipe it to self - MUST BE AFTER PREVIOUS SECTION TO CATCH SIZE ERRORS!!
-
-                internals.pump(stream, this, cut ? range : undefined, (err) => {
-
-                    if (err || failed) {
-                        return failOrRetry(err || new Error('already failed'));
-                    }
-
-                    debug('done fetching uri', uri);
-
-                    this.push(null);
-                });
 
                 // extract meta information from header
                 const typeparts = /^(.+?\/.+?)(?:;\w*.*)?$/.exec(res.headers['content-type']!) || [null, 'application/octet-stream'];
