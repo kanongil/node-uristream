@@ -136,7 +136,7 @@ export class UriHttpReader extends UriReader {
             https: options.agent as HttpsAgent
         } : options.agent as Agents || internals.agents();
 
-        let tries = 1 + (+options.retries! || 1);
+        let tries = 1 + (options.retries ?? 1);
         if (!this.probe) {
             defaults['accept-encoding'] = ['gzip', 'deflate', 'br'];
         }
