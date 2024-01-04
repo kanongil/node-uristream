@@ -2,8 +2,7 @@
 
 import type { Readable } from 'stream';
 
-import Fs = require('fs');
-import { promisify } from 'util';
+import Fs = require('fs/promises');
 
 import * as Boom from '@hapi/boom';
 import { ignore } from '@hapi/hoek';
@@ -48,7 +47,7 @@ const pump = function <S extends Readable, D extends Readable> (src: S, dst: D):
 export class UriFileReader extends UriReader {
 
     private _timeoutId?: NodeJS.Timeout;
-    private _src?: Fs.ReadStream;
+    private _src?: ReturnType<Fs.FileHandle['createReadStream']>;
 
     readonly path: string;
 
@@ -78,17 +77,17 @@ export class UriFileReader extends UriReader {
     async process(): Promise<void> {
 
         let stats;
-        let fd;
+        let handle: Fs.FileHandle | undefined = undefined;
         let bytes: number;
 
         try {
             try {
                 if (this.probe) {
-                    stats = await promisify(Fs.stat)(this.path);
+                    stats = await Fs.stat(this.path);
                 }
                 else {
-                    fd = await promisify(Fs.open)(this.path, 'r');
-                    stats = await promisify(Fs.fstat)(fd);
+                    handle = await Fs.open(this.path, 'r');
+                    stats = await handle.stat();
                 }
             }
             catch (thrownErr: any) {
@@ -124,7 +123,7 @@ export class UriFileReader extends UriReader {
             this.meta = meta;
             this.emit('meta', this.meta);
 
-            if (fd === undefined) {
+            if (handle === undefined) {
                 this.push(null);
                 return;
             }
@@ -134,19 +133,18 @@ export class UriFileReader extends UriReader {
                 // No need to read an empty file
 
                 this.push(null);
-                Fs.close(fd, ignore);
+                handle.close().catch(ignore);
                 return;
             }
 
-            this._src = Fs.createReadStream(this.path, {
-                fd,
+            this._src = handle.createReadStream({
                 start: this.start,
                 end: limit - 1
             });
         }
         catch (err) {
-            if (fd !== undefined) {
-                Fs.close(fd, ignore);
+            if (handle !== undefined) {
+                handle.close().catch(ignore);
             }
 
             throw err;
