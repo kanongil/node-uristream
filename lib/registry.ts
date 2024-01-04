@@ -29,7 +29,7 @@ export const lookup = function (scheme: string): typeof UriReader {
 export const isSupported = function (protocol: string): boolean {
 
     let scheme = protocol;
-    if (scheme.slice(-1) === ':') {
+    if (scheme.at(-1) === ':') {
         scheme = protocol.slice(0, -1);
     }
 
