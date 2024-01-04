@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
-    "lib": [ "ES2020" ],
-    "module": "commonjs",
+    "target": "ES2022",
+    "lib": [ "ES2022" ],
+    "module": "CommonJS",
     "isolatedModules": true,
     "resolveJsonModule": true,
     "declaration": true,
