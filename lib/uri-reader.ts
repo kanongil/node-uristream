@@ -1,5 +1,3 @@
-import { parse, Url, UrlObject } from 'url';
-
 import { Readable } from 'stream';
 
 export type SharedReaderOptions = {
@@ -30,7 +28,7 @@ export type Meta = {
 
 export class UriReader extends Readable {
 
-    readonly url: Url;
+    readonly url: URL;
     meta?: Meta;
 
     readonly timeout?: number;
@@ -38,11 +36,11 @@ export class UriReader extends Readable {
     readonly start: number;
     readonly end?: number;
 
-    constructor(uri: string | UrlObject, { highWaterMark, autoDestroy = true, emitClose = true, ...options }: SharedReaderOptions & InternalReaderOptions = {}) {
+    constructor(uri: URL, { highWaterMark, autoDestroy = true, emitClose = true, ...options }: SharedReaderOptions & InternalReaderOptions = {}) {
 
         super({ highWaterMark, autoDestroy, emitClose } as any);
 
-        this.url = parse(uri as string);
+        this.url = uri;
 
         // Options
 

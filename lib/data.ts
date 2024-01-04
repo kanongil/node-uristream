@@ -1,5 +1,3 @@
-import { format, UrlObject } from 'url';
-
 import { badData, rangeNotSatisfiable } from '@hapi/boom';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const DataUrl = require('dataurl') as { parse: (uri: string) => { readonly data: Buffer; readonly mimetype: string; readonly charset?: string }};
@@ -13,23 +11,19 @@ export type DataReaderOptions = SharedReaderOptions;
 
 export class UriDataReader extends UriReader {
 
-    constructor(uri: string | UrlObject, options = {}) {
+    constructor(uri: URL, options = {}) {
 
-        super('data:', options);
+        super(new URL('data:'), options);
 
         process.nextTick(() => {
 
-            if (typeof uri !== 'string') {
-                uri = format(uri);
-            }
-
-            const parsed = DataUrl.parse(uri);
+            const parsed = DataUrl.parse(uri.href);
 
             if (!parsed || !parsed.data) {
                 return this.destroy(badData());
             }
 
-            const meta = { url: uri, mime: parsed.mimetype, size: parsed.data.length, modified: null };
+            const meta = { url: uri.href, mime: parsed.mimetype, size: parsed.data.length, modified: null };
             const limit = (this.end! >= 0) ? Math.min(this.end! + 1, meta.size) : meta.size;
             if (limit - this.start < 0) {
                 const error = rangeNotSatisfiable();
@@ -41,7 +35,7 @@ export class UriDataReader extends UriReader {
             this.emit('meta', meta);
 
             if (!this.probe) {
-                this.push(parsed.data.slice(this.start, limit));
+                this.push(parsed.data.subarray(this.start, limit));
             }
 
             this.push(null);

@@ -1,6 +1,5 @@
 import { Agent as HttpsAgent } from 'https';
 import type { Socket } from 'net';
-import type { UrlObject } from 'url';
 import type { Readable, Transform, Writable } from 'stream';
 
 import { Agent as HttpAgent, IncomingMessage } from 'http';
@@ -122,7 +121,7 @@ export class UriHttpReader extends UriReader {
 
     transferred = 0;
 
-    constructor(uri: string | UrlObject, options: HttpReaderOptions = {}) {
+    constructor(uri: URL, options: HttpReaderOptions = {}) {
 
         super(uri, { ...options, emitClose: true });
 

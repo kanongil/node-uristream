@@ -3,7 +3,6 @@
 import type { Readable } from 'stream';
 
 import Fs = require('fs');
-import { format, UrlObject } from 'url';
 import { promisify } from 'util';
 
 import * as Boom from '@hapi/boom';
@@ -19,8 +18,6 @@ import { UriReader, SharedReaderOptions } from './uri-reader';
 
 export type FileReaderOptions = SharedReaderOptions;
 
-
-const PREFIX = 'file://';
 
 const pump = function <S extends Readable, D extends Readable> (src: S, dst: D): Promise<void> {
 
@@ -55,19 +52,15 @@ export class UriFileReader extends UriReader {
 
     readonly path: string;
 
-    constructor(uri: string | UrlObject, options: FileReaderOptions = {}) {
+    constructor(uri: URL, options: FileReaderOptions = {}) {
 
         super(uri, options);
-
-        if (this.url.href.slice(0,PREFIX.length) !== PREFIX) {
-            throw Boom.badRequest('invalid uri prefix: ' + this.url.href);
-        }
 
         if (!(this.url.host === '' || this.url.host === 'localhost')) {
             throw Boom.badRequest('only local file uri\' are supported: ' + this.url.href);
         }
 
-        this.path = this.url.path!;
+        this.path = this.url.pathname!;
 
         if (this.timeout) {
             this._timeoutId = setTimeout(() => {
@@ -84,7 +77,6 @@ export class UriFileReader extends UriReader {
 
     async process(): Promise<void> {
 
-        const uri = format(this.url);
         let stats;
         let fd;
         let bytes: number;
@@ -128,7 +120,7 @@ export class UriFileReader extends UriReader {
                 throw error;
             }
 
-            const meta = { url: uri, mime: lookup(this.path) || 'application/octet-stream', size: stats.size, modified: stats.mtime };
+            const meta = { url: this.url.href, mime: lookup(this.path) || 'application/octet-stream', size: stats.size, modified: stats.mtime };
             this.meta = meta;
             this.emit('meta', this.meta);
 
@@ -185,7 +177,7 @@ export class UriFileReader extends UriReader {
             throw Boom.internal('transmission error', err);
         }
 
-        debug('done fetching uri', uri);
+        debug('done fetching uri', this.url.href);
 
         this.push(null);
     }

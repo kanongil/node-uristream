@@ -2,8 +2,6 @@ import type { FileReaderOptions } from './file.js';
 import type { HttpReaderOptions } from './http.js';
 import type { DataReaderOptions } from './data.js';
 
-import { parse, UrlObject } from 'url';
-
 import { badRequest, forbidden } from '@hapi/boom';
 
 import { PartialError } from './partial-error';
@@ -25,24 +23,27 @@ type UriStreamOptions = {
 
 type FullOptions = UriStreamOptions & DataReaderOptions & FileReaderOptions & HttpReaderOptions;
 
-const uristream = function (uri: string | UrlObject, options: FullOptions = {}) {
+const uristream = function (uri: string | URL, options: FullOptions = {}) {
 
-    const protocol = parse(uri as string).protocol || '';
-    if (!protocol) {
-        throw badRequest('Missing protocol in uri:', uri);
+    try {
+        uri = new URL(uri as string);
+    }
+    catch (err) {
+        throw Object.assign(badRequest('Invalid URI string'), { cause: err });
     }
 
+    const protocol = uri.protocol;
     if (!isSupported(protocol)) {
-        throw badRequest('Unsupported protocol:', protocol);
+        throw badRequest(`Unsupported protocol: "${protocol}"`);
     }
 
     const scheme = protocol.slice(0, -1);
-    if (options.whitelist && options.whitelist.indexOf(scheme) === -1) {
-        throw forbidden('Protocol not allowed:', protocol);
+    if (options.whitelist && options.whitelist?.indexOf(scheme) === -1) {
+        throw forbidden(`Protocol not allowed: "${protocol}"`);
     }
 
     if (options.blacklist && options.blacklist.indexOf(scheme) !== -1) {
-        throw forbidden('Protocol not allowed:', protocol);
+        throw forbidden(`Protocol not allowed: "${protocol}"`);
     }
 
     const readerClass = lookup(scheme)!;
