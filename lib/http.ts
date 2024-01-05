@@ -211,7 +211,7 @@ export class UriHttpReader extends UriReader {
                 maxRedirects: 10,
                 retry: { limit: 0 }, /* handled manually */
                 decompress: false, /* handled manually */
-                http2: false,
+                http2: agent.http2 ? true : false,
                 throwHttpErrors: false,
                 enableUnixSockets: true
             });
