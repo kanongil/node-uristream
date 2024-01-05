@@ -68,13 +68,19 @@ export class UriFileReader extends UriReader {
             }, this.timeout);
         }
 
-        this.process().catch(this.destroy.bind(this));
+        this.#process()
+            .finally(() => {
+
+                clearTimeout(this._timeoutId);
+                this._src?.destroy();
+            })
+            .then(() => this._fetched(), (err) => this._fetched(err));
     }
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     _read(): void {}
 
-    async process(): Promise<void> {
+    async #process(): Promise<void> {
 
         let stats;
         let handle: Fs.FileHandle | undefined = undefined;
@@ -123,18 +129,8 @@ export class UriFileReader extends UriReader {
             this.meta = meta;
             this.emit('meta', this.meta);
 
-            if (handle === undefined) {
-                this.push(null);
-                return;
-            }
-
-            if (limit <= 0) {
-
-                // No need to read an empty file
-
-                this.push(null);
-                handle.close().catch(ignore);
-                return;
+            if (!handle || limit <= 0) {
+                return;         // No need to read an empty file
             }
 
             this._src = handle.createReadStream({
@@ -142,12 +138,10 @@ export class UriFileReader extends UriReader {
                 end: limit - 1
             });
         }
-        catch (err) {
-            if (handle !== undefined) {
-                handle.close().catch(ignore);
+        finally {
+            if (handle && !this._src) {
+                handle?.close().catch(ignore);
             }
-
-            throw err;
         }
 
         this._src.on('close', () => {
@@ -176,18 +170,6 @@ export class UriFileReader extends UriReader {
         }
 
         debug('done fetching uri', this.url.href);
-
-        this.push(null);
-    }
-
-    _destroy(err: Error | null, cb: (err?: Error | null) => void): void {
-
-        clearTimeout(this._timeoutId as NodeJS.Timeout);
-        if (this._src) {
-            this._src.destroy();
-        }
-
-        return super._destroy(err, cb);
     }
 }
 

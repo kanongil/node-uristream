@@ -51,7 +51,7 @@ const internals = {
                     return;
                 }
 
-                chunk = chunk.slice(skip);
+                chunk = chunk.subarray(skip);
                 skip = 0;
             }
 
@@ -60,7 +60,7 @@ const internals = {
                     limit -= chunk.length;
                 }
                 else {
-                    chunk = chunk.slice(0, limit);
+                    chunk = chunk.subarray(0, limit);
                     limit = 0;
                 }
             }
@@ -74,7 +74,7 @@ const internals = {
                 src.destroy();
             }
         });
-        Oncemore(src).once('end', 'error', (err) => {
+        Oncemore(src).once('close', 'end', 'error', (err) => {
             // TODO: flush source buffer on error?
             dst._read = ignore;
             done(err);
@@ -123,7 +123,7 @@ export class UriHttpReader extends UriReader {
 
     constructor(uri: URL, options: HttpReaderOptions = {}) {
 
-        super(uri, { ...options, emitClose: true });
+        super(uri, { ...options });
 
         const defaults: Record<string, string | string[]> = {
             'user-agent': internals.defaultAgent
@@ -153,7 +153,9 @@ export class UriHttpReader extends UriReader {
 
         const fetchHttp = (start: number): void => {
 
-            if (start > 0 || this.end! >= 0) {
+            if ((start > 0 || this.end! >= 0) &&
+                !this.meta?.etag?.startsWith('W/')) {
+
                 headers.range = 'bytes=' + start + '-' + (this.end! >= 0 ? this.end : '');
                 // content-encoding + range is very ambigous, so disable encoding
                 delete headers['accept-encoding'];
@@ -187,10 +189,10 @@ export class UriHttpReader extends UriReader {
 
                     // remap error to partial error if we have received any data
                     if (this.transferred !== 0) {
-                        err = new PartialError(err, this.transferred, (contentLength !== -1) ? start - offset + contentLength : contentLength);
+                        err = new PartialError(err, this.transferred, (contentLength !== -1) ? contentLength - offset : contentLength);   // TODO: handle this.end!!
                     }
 
-                    return this.destroy(err);
+                    return this._fetched(err);
                 }
 
                 debug('retrying at ' + (offset + this.transferred));
@@ -280,13 +282,13 @@ export class UriHttpReader extends UriReader {
                 if (contentLength >= 0 && target < 0) {
                     const error = rangeNotSatisfiable();
                     (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + contentLength;
-                    return this.destroy(error);
+                    return this._fetched(error);
                 }
 
                 let filesize = contentLength;
 
                 if (this.probe) {
-                    debug('done probing uri', uri);
+                    debug('done probing uri', uri.href);
 
                     if (res.headers['content-encoding'] &&
                         res.headers['content-encoding'] !== 'identity') {
@@ -295,7 +297,7 @@ export class UriHttpReader extends UriReader {
 
                     req.resume();      // Ensure buffer empties
                     failed = true;     // Disable failOrRetry handler 
-                    this.push(null);
+                    this._fetched();
                 }
                 else {
 
@@ -352,9 +354,9 @@ export class UriHttpReader extends UriReader {
                             return failOrRetry(err || new Error('already failed'));
                         }
 
-                        debug('done fetching uri', uri);
+                        debug('done fetching uri', uri.href);
 
-                        this.push(null);
+                        this._fetched();
                     });
                 }
 
@@ -372,7 +374,12 @@ export class UriHttpReader extends UriReader {
                         meta.size = this.meta.size;
                     }
 
-                    if (!deepEqual(this.meta, meta, { symbols: false })) {
+                    if (this.meta.url !== meta.url ||
+                        this.meta.mime !== meta.mime ||
+                        this.meta.size !== meta.size ||
+                        +this.meta.modified! !== +meta.modified! ||
+                        this.meta.etag !== meta.etag) {
+
                         failOrRetry(conflict('file has changed'), true);
                     }
                 }

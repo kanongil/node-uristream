@@ -23,6 +23,7 @@ Returns a standard `Readable` stream based on the `uri`.
 
 #### standard options
 
+* `highWaterMark` - `ReadableStream` property that sets size of internal data buffer.
 * `timeout` - Integer containing the number of milliseconds to wait for a stream to respond before aborting the stream.
 * `probe` - Boolean that indicates that the stream should not return any data.
 * `start` - Integer indicating the starting offset in bytes.
@@ -38,7 +39,7 @@ The `http` and `https` protocol handlers will additionally accept these options:
 
 #### Event: 'meta'
 
-In addition to the standard `end`, `close`, and `error` events, a `meta` event is emitted once before any data is available.
+A special `meta` event is emitted once, before any data is delivered.
 
 * `meta` - Object containing standardized stream metadata:
   + `url` - String with resolved data url.
@@ -46,6 +47,16 @@ In addition to the standard `end`, `close`, and `error` events, a `meta` event i
   + `size` - Integer representing total data size in bytes. `-1` if unknown.
   + `modified` - Date last modified. `null` if unknown.
   + `etag` - String entity tag. `undefined` if unknown.
+
+#### Event: 'fetched'
+
+The `fetched` event can be used to be notified when the remote fetch has finished.
+This can happen before `end` or `error` is emitted, if the stream is consumed slowly and it has an internal buffer.
+
+Note that attaching a listerner for this, will also defer a remote fetch error `error` emit until the internal buffer
+has emptied, instead of immediately triggering.
+
+* `err` - Fetch failure `Error`, or `undefined` if successful:
 
 ## Installation
 
@@ -61,7 +72,7 @@ In addition to the standard `end`, `close`, and `error` events, a `meta` event i
 
 (BSD 2-Clause License)
 
-Copyright (c) 2013-2022, Gil Pedersen &lt;gpdev@gpost.dk&gt;
+Copyright (c) 2013-2024, Gil Pedersen &lt;gpdev@gpost.dk&gt;
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met: 

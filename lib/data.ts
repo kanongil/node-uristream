@@ -17,33 +17,40 @@ export class UriDataReader extends UriReader {
 
         process.nextTick(() => {
 
-            const parsed = DataUrl.parse(uri.href);
-
-            if (!parsed || !parsed.data) {
-                return this.destroy(badData());
+            try {
+                this.#process(uri);
+            }
+            catch (err: any) {
+                return this._fetched(err);
             }
 
-            const meta = { url: uri.href, mime: parsed.mimetype, size: parsed.data.length, modified: null };
-            const limit = (this.end! >= 0) ? Math.min(this.end! + 1, meta.size) : meta.size;
-            if (limit - this.start < 0) {
-                const error = rangeNotSatisfiable();
-                (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + meta.size;
-                return this.destroy(error);
-            }
-
-            this.meta = meta;
-            this.emit('meta', meta);
-
-            if (!this.probe) {
-                this.push(parsed.data.subarray(this.start, limit));
-            }
-
-            this.push(null);
+            return this._fetched();
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    _read(): void {}
+    #process(uri: URL): void {
+
+        const parsed = DataUrl.parse(uri.href);
+
+        if (!parsed || !parsed.data) {
+            throw badData();
+        }
+
+        const meta = { url: uri.href, mime: parsed.mimetype, size: parsed.data.length, modified: null };
+        const limit = (this.end! >= 0) ? Math.min(this.end! + 1, meta.size) : meta.size;
+        if (limit - this.start < 0) {
+            const error = rangeNotSatisfiable();
+            (error.output.headers as { [name: string]: string })['content-range'] = 'bytes */' + meta.size;
+            throw error;
+        }
+
+        this.meta = meta;
+        this.emit('meta', meta);
+
+        if (!this.probe) {
+            this.push(parsed.data.subarray(this.start, limit));
+        }
+    }
 }
 
 register('data', UriDataReader);

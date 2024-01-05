@@ -1,5 +1,7 @@
 import { Readable } from 'stream';
 
+import { ignore } from '@hapi/hoek';
+
 export type SharedReaderOptions = {
     /** ReadableStream property that sets size of internal data buffer. Default undefined / let ReadableStream decide. */
     highWaterMark?: number;
@@ -11,11 +13,6 @@ export type SharedReaderOptions = {
     start?: number;
     /** Optional byte index to end at (inclusive) */
     end?: number;
-};
-
-type InternalReaderOptions = {
-    autoDestroy?: boolean;
-    emitClose?: boolean;
 };
 
 export type Meta = {
@@ -36,9 +33,11 @@ export class UriReader extends Readable {
     readonly start: number;
     readonly end?: number;
 
-    constructor(uri: URL, { highWaterMark, autoDestroy = true, emitClose = true, ...options }: SharedReaderOptions & InternalReaderOptions = {}) {
+    #deferredError?: Error;
 
-        super({ highWaterMark, autoDestroy, emitClose } as any);
+    constructor(uri: URL, { highWaterMark, ...options }: SharedReaderOptions = {}) {
+
+        super({ highWaterMark, autoDestroy: true, emitClose: true } as any);
 
         this.url = uri;
 
@@ -54,4 +53,42 @@ export class UriReader extends Readable {
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     _read(): void {}
+
+    /**
+     * Called by subclasses to signal that no more data will be fetched from the underlying resource.
+     *
+     * This is responsible for closing the stream.
+     */
+    protected _fetched(err?: Error): void {
+
+        const usesFetched = this.emit('fetched', err);
+
+        if (err) {
+            if (usesFetched) {
+                this.#deferredError ??= err;    // Defer destroy until all data has been consumed
+                this.push(null);                // Signal stream end
+            }
+            else {
+                this.destroy(err);              // Use regular flow
+            }
+        }
+        else {
+            this.push(null);                    // Use regular flow
+        }
+    }
+
+    emit(event: string, arg?: unknown): any {
+
+        if (this.#deferredError) {
+            if (event === 'end') {
+                this.destroy(this.#deferredError);          // Cancel 'end' emit
+                return;
+            }
+            else if (event === 'error') {
+                this.#deferredError = undefined;            // The user supplied error supercedes the stored error
+            }
+        }
+
+        return super.emit(event, arg);
+    }
 }
