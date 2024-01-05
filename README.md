@@ -36,6 +36,7 @@ The `http` and `https` protocol handlers will additionally accept these options:
 * `headers` - Headers to add to the request.
 * `agent` - Use supplied agent for the request.
 * `retries` - Retry request on temporary errors, default `1`.
+* `enableUnixSockets` - Set to handle [unix socket urls](https://github.com/sindresorhus/got/blob/v14.0.0/documentation/2-options.md#enableunixsockets).
 
 #### Event: 'meta'
 

@@ -113,6 +113,8 @@ export type HttpReaderOptions = SharedReaderOptions & {
     headers?: Record<string, string | string[]>;
     /** Custom Agent(s) (HTTP-only) */
     agent?: Agents | typeof HttpAgent;
+    /** Set to handle [unix socket urls](https://github.com/sindresorhus/got/blob/v14.0.0/documentation/2-options.md#enableunixsockets). */
+    enableUnixSockets?: boolean;
 };
 
 
@@ -140,6 +142,7 @@ export class UriHttpReader extends UriReader {
         }
 
         const fetchMethod = this.probe ? 'HEAD' : 'GET';
+        const enableUnixSockets = !!options.enableUnixSockets;
 
         // TODO: handle case in header names
         const headers = applyToDefaults(defaults, options.headers || {}, { nullOverride: true });
@@ -213,7 +216,7 @@ export class UriHttpReader extends UriReader {
                 decompress: false, /* handled manually */
                 http2: agent.http2 ? true : false,
                 throwHttpErrors: false,
-                enableUnixSockets: true
+                enableUnixSockets
             });
 
             // Set no delay on socket
