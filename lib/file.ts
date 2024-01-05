@@ -1,18 +1,18 @@
 // RFC 1738 file: URI support
 
-import type { Readable } from 'stream';
+import type { Readable } from 'node:stream';
 
-import Fs = require('fs/promises');
+import * as Fs from 'node:fs/promises';
 
 import * as Boom from '@hapi/boom';
 import { ignore } from '@hapi/hoek';
 import { lookup } from 'mime-types';
-import Oncemore = require('oncemore');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const debug = require('debug')('uristream:file');
+import Oncemore from 'oncemore';
+import { default as Debug } from 'debug';
+const debug = Debug('uristream:file');
 
-import { register } from './registry';
-import { UriReader, SharedReaderOptions } from './uri-reader';
+import { register } from './registry.js';
+import { UriReader, SharedReaderOptions } from './uri-reader.js';
 
 
 export type FileReaderOptions = SharedReaderOptions;

@@ -1,4 +1,4 @@
-import type { UriReader } from './uri-reader';
+import type { UriReader } from './uri-reader.js';
 
 const handlers = new Map<string, typeof UriReader>();
 

@@ -1,9 +1,8 @@
 import { badData, rangeNotSatisfiable } from '@hapi/boom';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const DataUrl = require('dataurl') as { parse: (uri: string) => { readonly data: Buffer; readonly mimetype: string; readonly charset?: string }};
+import DataUrl from 'dataurl';
 
-import { register } from './registry';
-import { UriReader, SharedReaderOptions } from './uri-reader';
+import { register } from './registry.js';
+import { UriReader, SharedReaderOptions } from './uri-reader.js';
 
 
 export type DataReaderOptions = SharedReaderOptions;

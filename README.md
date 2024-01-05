@@ -11,7 +11,7 @@ The `http(s)` handler transparently attempts to use gzip compression for the tra
 
 ## Usage
 
-    var uristream = require('uristream');
+    import uristream from 'uristream';
 
     uristream('http://google.com/').pipe(process.stdout);
 

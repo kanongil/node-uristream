@@ -2,7 +2,9 @@
   "name": "uristream",
   "version": "6.3.2",
   "description": "Stream from URI-based resources",
-  "main": "uristream.js",
+  "main": "lib/uristream.js",
+  "types": "lib/uristream.d.ts",
+  "type": "module",
   "scripts": {
     "clean": "rm -f lib/*.{js,d.ts}",
     "postpack": "npm run clean",
@@ -16,12 +18,12 @@
   "author": "Gil Pedersen <gpdev@gpost.dk>",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "@hapi/boom": "^9.1.0",
-    "@hapi/hoek": "^9.0.4",
+    "@hapi/boom": "^10.0.1",
+    "@hapi/hoek": "^11.0.4",
     "agentkeepalive": "^4.1.3",
     "dataurl": "~0.1.0",
     "debug": "^4.1.1",
-    "got": "^11.2.0",
+    "got": "^14.0.0",
     "mime-types": "^2.0.10",
     "oncemore": "^1.2.0"
   },
@@ -32,13 +34,14 @@
     "test": "test"
   },
   "devDependencies": {
-    "@hapi/code": "^8.0.1",
-    "@hapi/eslint-plugin": "^5.0.0",
-    "@hapi/lab": "^24.0.0",
+    "@hapi/code": "^9.0.3",
+    "@hapi/eslint-plugin": "^6.0.0",
+    "@hapi/lab": "^25.1.3",
     "@types/mime-types": "^2.1.0",
-    "@typescript-eslint/eslint-plugin": "^5.29.0",
-    "@typescript-eslint/parser": "^5.29.0",
-    "typescript": "~4.9.5"
+    "@types/node": "^18.19.4",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "typescript": "~5.3.3"
   },
   "keywords": [
     "protocol",

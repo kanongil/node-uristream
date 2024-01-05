@@ -4,9 +4,9 @@ import type { DataReaderOptions } from './data.js';
 
 import { badRequest, forbidden } from '@hapi/boom';
 
-import { PartialError } from './partial-error';
-import { register, lookup, isSupported } from './registry';
-import { UriReader } from './uri-reader';
+import { PartialError } from './partial-error.js';
+import { register, lookup, isSupported } from './registry.js';
+import { UriReader } from './uri-reader.js';
 
 // Register handlers
 
@@ -50,4 +50,6 @@ const uristream = function (uri: string | URL, options: FullOptions = {}) {
     return new readerClass(uri, options);
 };
 
-export = Object.assign(uristream, { UriReader, PartialError, register, isSupported });
+export default uristream;
+
+export { UriReader, PartialError, register, isSupported };

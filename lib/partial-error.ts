@@ -24,4 +24,4 @@ export class PartialError extends Error {
     }
 }
 
-exports.PartialError.prototype.name = 'PartialError';
+PartialError.prototype.name = 'PartialError';

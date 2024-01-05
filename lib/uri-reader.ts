@@ -1,9 +1,8 @@
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
-import { ignore } from '@hapi/hoek';
 
 export type SharedReaderOptions = {
-    /** ReadableStream property that sets size of internal data buffer. Default undefined / let ReadableStream decide. */
+    /** Readable property that sets size of internal data buffer. Default undefined / let Readable decide. */
     highWaterMark?: number;
     /** Fail request with timeout error after 'timeout' milliseconds. Default undefined / no timeout. */
     timeout?: number;

@@ -1,28 +1,27 @@
-import { Agent as HttpsAgent } from 'https';
-import type { Socket } from 'net';
-import type { Readable, Transform, Writable } from 'stream';
+import type { Socket } from 'node:net';
+import type { Readable, Transform, Writable } from 'node:stream';
 
-import { Agent as HttpAgent, IncomingMessage } from 'http';
-import { format } from 'util';
-import { createBrotliDecompress, createUnzip } from 'zlib';
+import { Agent as HttpAgent, IncomingMessage } from 'node:http';
+import { Agent as HttpsAgent } from 'node:https';
+import { format } from 'node:util';
+import { createBrotliDecompress, createUnzip } from 'node:zlib';
 
 import { Boom, badRequest, badImplementation, conflict, boomify, rangeNotSatisfiable } from '@hapi/boom';
 import Got, { Agents } from 'got';
-import { version as GotVersion } from 'got/package.json';
-import { applyToDefaults, deepEqual, ignore } from '@hapi/hoek';
-import Keepalive = require('agentkeepalive');
-import Oncemore = require('oncemore');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const debug = require('debug')('uristream:http');
+import { applyToDefaults, ignore } from '@hapi/hoek';
+import Keepalive from 'agentkeepalive';
+import Oncemore from 'oncemore';
+import { default as Debug } from 'debug';
+const debug = Debug('uristream:http');
 
-import { PartialError } from './partial-error';
-import { register } from './registry';
-import { UriReader, SharedReaderOptions } from './uri-reader';
-import * as Pkg from '../package.json';
+import { PartialError } from './partial-error.js';
+import { register } from './registry.js';
+import { UriReader, SharedReaderOptions } from './uri-reader.js';
+import * as Versions from './versions.js';
 
 
 const internals = {
-    defaultAgent: format('%s/v%s got/v%s node.js/%s', Pkg.name, Pkg.version, GotVersion, process.version),
+    defaultAgent: format('%s/v%s got/v%s node.js/%s', Versions.name, Versions.module, Versions.got, process.version),
 
     // forward errors emitted upstream
     inheritErrors<T extends Writable>(stream: T): T {
@@ -206,12 +205,15 @@ export class UriHttpReader extends UriReader {
                 method: fetchMethod,
                 headers,
                 agent,
-                timeout: this.timeout,
+                timeout: {
+                    request: this.timeout   // TODO: reduce timeout for retries
+                },
                 maxRedirects: 10,
-                retry: 0, /* handled manually */
+                retry: { limit: 0 }, /* handled manually */
                 decompress: false, /* handled manually */
                 http2: false,
-                throwHttpErrors: false
+                throwHttpErrors: false,
+                enableUnixSockets: true
             });
 
             // Set no delay on socket
